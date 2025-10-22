@@ -24,27 +24,25 @@ renderPage('Parser de logs Prosa', static function (): void {
         <div class="prosa-feedback">
             <p id="prosa-summary" class="helper-text">Aún no se han procesado registros.</p>
         </div>
-        <label class="prosa-output">
-            <span>Resultado consolidado (JSON)</span>
-            <textarea id="prosa-json-output" readonly placeholder="El resultado en formato JSON aparecerá aquí una vez procesados los logs."></textarea>
-        </label>
+        <div class="prosa-controls">
+            <fieldset class="prosa-columns">
+                <legend>Columnas visibles</legend>
+                <div id="prosa-column-options" class="prosa-columns-grid"></div>
+            </fieldset>
+            <div class="prosa-export">
+                <span class="prosa-export-label">Exportar resultados</span>
+                <button type="button" id="prosa-export-json" class="button-secondary" disabled>Exportar JSON</button>
+                <button type="button" id="prosa-export-csv" class="button-secondary" disabled>Exportar CSV</button>
+            </div>
+        </div>
         <div class="prosa-table-wrapper">
             <table class="prosa-table">
                 <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Referencia</th>
-                    <th>Masked PAN</th>
-                    <th>Marca</th>
-                    <th>Monto</th>
-                    <th>Moneda</th>
-                    <th>Merchant</th>
-                    <th>Endpoint</th>
-                </tr>
+                <tr id="prosa-table-head-row"></tr>
                 </thead>
                 <tbody id="prosa-table-body">
                 <tr>
-                    <td colspan="8">Aún no hay datos procesados.</td>
+                    <td>Aún no hay datos procesados.</td>
                 </tr>
                 </tbody>
             </table>
@@ -60,20 +58,47 @@ renderPage('Parser de logs Prosa', static function (): void {
             const processButton = document.querySelector('#prosa-process');
             const clearButton = document.querySelector('#prosa-clear');
             const summary = document.querySelector('#prosa-summary');
-            const output = document.querySelector('#prosa-json-output');
+            const table = document.querySelector('.prosa-table');
             const tableBody = document.querySelector('#prosa-table-body');
+            const tableHeadRow = document.querySelector('#prosa-table-head-row');
+            const columnOptions = document.querySelector('#prosa-column-options');
+            const exportJsonButton = document.querySelector('#prosa-export-json');
+            const exportCsvButton = document.querySelector('#prosa-export-csv');
             const errorDetails = document.querySelector('#prosa-error-details');
             const errorCount = document.querySelector('#prosa-error-count');
             const errorList = document.querySelector('#prosa-error-list');
+            const defaultSummary = 'Aún no se han procesado registros.';
 
-            if (!input || !processButton || !clearButton || !summary || !output || !tableBody || !errorDetails || !errorCount || !errorList) {
+            if (!input || !processButton || !clearButton || !summary || !table || !tableBody || !tableHeadRow || !columnOptions || !exportJsonButton || !exportCsvButton || !errorDetails || !errorCount || !errorList) {
                 return;
             }
 
-            const emptyTableRow = '<tr><td colspan="8">Aún no hay datos procesados.</td></tr>';
+            const columnDefinitions = [
+                { key: 'registro', label: '#' },
+                { key: 'timestamp', label: 'Timestamp' },
+                { key: 'correlationId', label: 'Correlation ID' },
+                { key: 'endpoint', label: 'Endpoint' },
+                { key: 'referenceId', label: 'Referencia' },
+                { key: 'initiatorTraceId', label: 'Trace ID' },
+                { key: 'transactionType', label: 'Tipo de transacción' },
+                { key: 'amount', label: 'Monto' },
+                { key: 'currency', label: 'Moneda' },
+                { key: 'maskedPan', label: 'Masked PAN' },
+                { key: 'cardBrand', label: 'Marca' },
+                { key: 'cardProduct', label: 'Producto' },
+                { key: 'merchantName', label: 'Comercio' },
+                { key: 'merchantId', label: 'Merchant ID' },
+                { key: 'transactionUuid', label: 'Transaction UUID' },
+                { key: 'altPoiId', label: 'Alt POI ID' },
+                { key: 'poiId', label: 'POI ID' }
+            ];
+
+            const defaultColumnKeys = ['registro', 'referenceId', 'maskedPan', 'cardBrand', 'amount', 'currency', 'merchantName', 'endpoint'];
+            const selectedColumns = new Set(defaultColumnKeys);
+            let processedRows = [];
 
             function escapeHtml(value) {
-                return value.replace(/[&<>"']/g, function (character) {
+                return String(value).replace(/[&<>"']/g, function (character) {
                     switch (character) {
                         case '&':
                             return '&amp;';
@@ -89,6 +114,48 @@ renderPage('Parser de logs Prosa', static function (): void {
                             return character;
                     }
                 });
+            }
+
+            function sanitizeLines(raw) {
+                if (typeof raw !== 'string') {
+                    return [];
+                }
+
+                const lines = raw.split(/\r?\n/);
+                const cleaned = [];
+
+                lines.forEach(function (line) {
+                    if (!line) {
+                        return;
+                    }
+
+                    let sanitizedLine = line.trim();
+
+                    if (sanitizedLine === '' || sanitizedLine.toLowerCase() === 'message') {
+                        return;
+                    }
+
+                    const hasOuterDoubleQuotes = sanitizedLine.startsWith('"') && sanitizedLine.endsWith('"');
+                    const hasOuterSingleQuotes = sanitizedLine.startsWith("'") && sanitizedLine.endsWith("'");
+                    const hasOuterQuotes = hasOuterDoubleQuotes || hasOuterSingleQuotes;
+
+                    if (hasOuterQuotes) {
+                        sanitizedLine = sanitizedLine.replace(/""/g, '"');
+                        sanitizedLine = sanitizedLine.replace(/\\""/g, '"');
+                        sanitizedLine = sanitizedLine.replace(/^"+|"+$/g, '');
+                        sanitizedLine = sanitizedLine.replace(/^'+|'+$/g, '');
+                        sanitizedLine = sanitizedLine.replace(/\\n/g, '');
+                        sanitizedLine = sanitizedLine.replace(/,+\s*$/g, '');
+                    }
+
+                    sanitizedLine = sanitizedLine.trim();
+
+                    if (sanitizedLine !== '') {
+                        cleaned.push(sanitizedLine);
+                    }
+                });
+
+                return cleaned;
             }
 
             function extractJsonObjects(text) {
@@ -188,16 +255,37 @@ renderPage('Parser de logs Prosa', static function (): void {
                 if (typeof message !== 'string') {
                     return null;
                 }
-                const match = message.match(/ENDPOINT:\s*([^\n]+)/i);
+                const match = message.match(/ENDPOINT:\s*([^\n\r<{]+)/i);
                 return match ? match[1].trim() : null;
             }
 
+            function collectSegments(raw) {
+                const sanitizedLines = sanitizeLines(raw);
+
+                if (sanitizedLines.length > 0) {
+                    const joined = sanitizedLines.join('\n');
+                    const segments = extractJsonObjects(joined);
+
+                    if (segments.length > 0) {
+                        return segments;
+                    }
+
+                    return sanitizedLines;
+                }
+
+                return extractJsonObjects(raw);
+            }
+
             function parseLogs(raw) {
-                const segments = extractJsonObjects(raw);
+                const segments = collectSegments(raw);
                 const results = [];
                 const errors = [];
 
                 segments.forEach(function (segment, segmentIndex) {
+                    if (typeof segment !== 'string' || segment.trim() === '') {
+                        return;
+                    }
+
                     try {
                         const base = JSON.parse(segment);
                         const message = typeof base.message === 'string' ? base.message : '';
@@ -222,6 +310,9 @@ renderPage('Parser de logs Prosa', static function (): void {
                             }
                         }
 
+                        const merchantId = asCleanString(merchant.merchantId);
+                        const merchantName = asCleanString(merchant.name);
+
                         const entry = {
                             registro: segmentIndex + 1,
                             timestamp: asCleanString(base.timestamp),
@@ -235,8 +326,8 @@ renderPage('Parser de logs Prosa', static function (): void {
                             maskedPan: instrument ? asCleanString(instrument.maskedCardNumber) : null,
                             cardBrand: instrument ? asCleanString(instrument.cardBrand) : null,
                             cardProduct: instrument ? asCleanString(instrument.cardProduct) : null,
-                            merchantId: asCleanString(merchant.merchantId),
-                            merchantName: asCleanString(merchant.name),
+                            merchantId,
+                            merchantName: merchantName || merchantId,
                             transactionUuid: asCleanString(internal.transactionUUID),
                             altPoiId: asCleanString(poi.altVfiPoiId),
                             poiId: asCleanString(transaction.poi && typeof transaction.poi === 'object' ? transaction.poi.poiId : null)
@@ -252,6 +343,60 @@ renderPage('Parser de logs Prosa', static function (): void {
                 return { segments: segments.length, results, errors };
             }
 
+            function getVisibleColumns() {
+                return columnDefinitions.filter(function (column) {
+                    return selectedColumns.has(column.key);
+                });
+            }
+
+            function renderColumnOptions() {
+                if (!columnOptions) {
+                    return;
+                }
+
+                columnOptions.innerHTML = '';
+                const fragment = document.createDocumentFragment();
+
+                columnDefinitions.forEach(function (column) {
+                    const optionLabel = document.createElement('label');
+                    optionLabel.className = 'prosa-column-option';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = column.key;
+                    checkbox.checked = selectedColumns.has(column.key);
+                    checkbox.addEventListener('change', function (event) {
+                        handleColumnToggle(column.key, checkbox.checked, event.target);
+                    });
+
+                    const text = document.createElement('span');
+                    text.textContent = column.label;
+
+                    optionLabel.appendChild(checkbox);
+                    optionLabel.appendChild(text);
+                    fragment.appendChild(optionLabel);
+                });
+
+                columnOptions.appendChild(fragment);
+            }
+
+            function handleColumnToggle(key, isChecked, control) {
+                if (isChecked) {
+                    selectedColumns.add(key);
+                } else {
+                    if (selectedColumns.size === 1 && selectedColumns.has(key)) {
+                        if (control) {
+                            control.checked = true;
+                        }
+                        return;
+                    }
+                    selectedColumns.delete(key);
+                }
+
+                renderTable(processedRows);
+                updateExportButtons();
+            }
+
             function formatCell(value) {
                 if (value === null || value === undefined || value === '') {
                     return '<span class="muted-text">—</span>';
@@ -260,36 +405,50 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
 
             function renderTable(rows) {
+                const visibleColumns = getVisibleColumns();
+
+                if (table) {
+                    if (selectedColumns.has('registro')) {
+                        table.classList.add('prosa-table-with-index');
+                    } else {
+                        table.classList.remove('prosa-table-with-index');
+                    }
+                }
+
+                if (visibleColumns.length === 0) {
+                    tableHeadRow.innerHTML = '<th>Sin columnas seleccionadas</th>';
+                    tableBody.innerHTML = '<tr><td>Selecciona al menos una columna para visualizar los datos.</td></tr>';
+                    return;
+                }
+
+                tableHeadRow.innerHTML = visibleColumns.map(function (column) {
+                    return '<th>' + escapeHtml(column.label) + '</th>';
+                }).join('');
+
                 if (!Array.isArray(rows) || rows.length === 0) {
-                    tableBody.innerHTML = emptyTableRow;
+                    tableBody.innerHTML = '<tr><td colspan="' + visibleColumns.length + '">Aún no hay datos procesados.</td></tr>';
                     return;
                 }
 
                 const html = rows.map(function (row) {
-                    return '<tr>' +
-                        '<td>' + formatCell(row.registro) + '</td>' +
-                        '<td>' + formatCell(row.referenceId) + '</td>' +
-                        '<td>' + formatCell(row.maskedPan) + '</td>' +
-                        '<td>' + formatCell(row.cardBrand) + '</td>' +
-                        '<td>' + formatCell(row.amount) + '</td>' +
-                        '<td>' + formatCell(row.currency) + '</td>' +
-                        '<td>' + formatCell(row.merchantName || row.merchantId) + '</td>' +
-                        '<td>' + formatCell(row.endpoint) + '</td>' +
-                        '</tr>';
+                    const cells = visibleColumns.map(function (column) {
+                        return '<td>' + formatCell(row[column.key]) + '</td>';
+                    }).join('');
+                    return '<tr>' + cells + '</tr>';
                 }).join('');
 
                 tableBody.innerHTML = html;
             }
 
-            function renderSummary(segments, successes, errors) {
-                if (segments === 0) {
+            function renderSummary(totalSegments, successes, errorCountValue) {
+                if (totalSegments === 0) {
                     summary.textContent = 'No se detectaron objetos JSON en la entrada.';
                     return;
                 }
 
-                const parts = [successes + ' de ' + segments + ' registros procesados correctamente.'];
-                if (errors > 0) {
-                    parts.push(errors + ' con errores.');
+                const parts = [successes + ' de ' + totalSegments + ' registros procesados correctamente.'];
+                if (errorCountValue > 0) {
+                    parts.push(errorCountValue + ' con errores.');
                 }
                 summary.textContent = parts.join(' ');
             }
@@ -311,27 +470,109 @@ renderPage('Parser de logs Prosa', static function (): void {
                 }).join('');
             }
 
+            function updateExportButtons() {
+                const hasData = Array.isArray(processedRows) && processedRows.length > 0;
+                const hasColumns = selectedColumns.size > 0;
+                const disabled = !(hasData && hasColumns);
+
+                exportJsonButton.disabled = disabled;
+                exportCsvButton.disabled = disabled;
+            }
+
+            function escapeCsvValue(value) {
+                if (value === null || value === undefined) {
+                    return '';
+                }
+
+                const stringValue = String(value);
+
+                if (stringValue === '') {
+                    return '';
+                }
+
+                if (/[",\n\r]/.test(stringValue)) {
+                    return '"' + stringValue.replace(/"/g, '""') + '"';
+                }
+
+                return stringValue;
+            }
+
+            function buildCsv(rows, columns) {
+                const header = columns.map(function (column) {
+                    return escapeCsvValue(column.label);
+                }).join(',');
+
+                const lines = rows.map(function (row) {
+                    return columns.map(function (column) {
+                        const value = row[column.key] ?? '';
+                        return escapeCsvValue(value);
+                    }).join(',');
+                });
+
+                return [header].concat(lines).join('\n');
+            }
+
+            function downloadBlob(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                requestAnimationFrame(function () {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                });
+            }
+
+            function exportAsJson() {
+                if (!Array.isArray(processedRows) || processedRows.length === 0) {
+                    return;
+                }
+
+                const visibleColumns = getVisibleColumns();
+                const data = processedRows.map(function (row) {
+                    const item = {};
+                    visibleColumns.forEach(function (column) {
+                        item[column.key] = row[column.key] ?? null;
+                    });
+                    return item;
+                });
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                downloadBlob(blob, 'prosa-log-parser.json');
+            }
+
+            function exportAsCsv() {
+                if (!Array.isArray(processedRows) || processedRows.length === 0) {
+                    return;
+                }
+
+                const visibleColumns = getVisibleColumns();
+                const csvContent = buildCsv(processedRows, visibleColumns);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                downloadBlob(blob, 'prosa-log-parser.csv');
+            }
+
             function handleProcess() {
                 const rawInput = input.value;
                 const result = parseLogs(rawInput);
 
-                renderSummary(result.segments, result.results.length, result.errors.length);
-                renderTable(result.results);
-                renderErrors(result.errors);
+                processedRows = result.results;
 
-                if (result.results.length > 0) {
-                    output.value = JSON.stringify(result.results, null, 2);
-                } else {
-                    output.value = '';
-                }
+                renderSummary(result.segments, result.results.length, result.errors.length);
+                renderTable(processedRows);
+                renderErrors(result.errors);
+                updateExportButtons();
             }
 
             function handleClear() {
                 input.value = '';
-                output.value = '';
-                summary.textContent = 'Aún no se han procesado registros.';
-                tableBody.innerHTML = emptyTableRow;
+                processedRows = [];
+                summary.textContent = defaultSummary;
+                renderTable(processedRows);
                 renderErrors([]);
+                updateExportButtons();
                 updateButtonState();
             }
 
@@ -339,10 +580,17 @@ renderPage('Parser de logs Prosa', static function (): void {
                 processButton.disabled = input.value.trim().length === 0;
             }
 
+            renderColumnOptions();
+            renderTable(processedRows);
+            renderErrors([]);
+            updateExportButtons();
+            updateButtonState();
+
             processButton.addEventListener('click', handleProcess);
             clearButton.addEventListener('click', handleClear);
             input.addEventListener('input', updateButtonState);
-            updateButtonState();
+            exportJsonButton.addEventListener('click', exportAsJson);
+            exportCsvButton.addEventListener('click', exportAsCsv);
         })();
     </script>
     <?php

@@ -526,9 +526,58 @@ a:focus {
     min-height: 220px;
 }
 
-.prosa-output textarea {
-    min-height: 180px;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+.prosa-controls {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.prosa-columns {
+    min-width: 260px;
+    border: 1px solid rgba(110, 255, 210, 0.2);
+    border-radius: var(--radius-small);
+    padding: 1rem 1.2rem;
+    background: rgba(5, 5, 5, 0.55);
+}
+
+.prosa-columns legend {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-primary);
+}
+
+.prosa-columns-grid {
+    margin-top: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.6rem;
+}
+
+.prosa-column-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+}
+
+.prosa-column-option input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+}
+
+.prosa-export {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 180px;
+}
+
+.prosa-export-label {
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .prosa-feedback {
@@ -547,7 +596,7 @@ a:focus {
 .prosa-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 720px;
+    min-width: 640px;
     font-size: 0.9rem;
 }
 
@@ -562,8 +611,8 @@ a:focus {
     background: rgba(110, 255, 210, 0.08);
 }
 
-.prosa-table th:first-child,
-.prosa-table td:first-child {
+.prosa-table.prosa-table-with-index th:first-child,
+.prosa-table.prosa-table-with-index td:first-child {
     width: 60px;
 }
 
@@ -596,6 +645,6 @@ a:focus {
 
 @media (max-width: 720px) {
     .prosa-table {
-        min-width: 640px;
+        min-width: 520px;
     }
 }
