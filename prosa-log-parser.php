@@ -361,6 +361,42 @@ renderPage('Parser de logs Prosa', static function (): void {
                 });
             }
 
+            function unwrapLine(value) {
+                if (typeof value !== 'string') {
+                    return '';
+                }
+
+                const trimmed = value.trim();
+
+                if (trimmed.length < 2) {
+                    return trimmed;
+                }
+
+                const firstChar = trimmed.charAt(0);
+                const lastChar = trimmed.charAt(trimmed.length - 1);
+
+                if (firstChar === '"' && lastChar === '"') {
+                    try {
+                        return JSON.parse(trimmed);
+                    } catch (error) {
+                        return trimmed.slice(1, -1).replace(/""/g, '"');
+                    }
+                }
+
+                if (firstChar === "'" && lastChar === "'") {
+                    const inner = trimmed.slice(1, -1);
+                    const escapedInner = inner.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+                    try {
+                        return JSON.parse('"' + escapedInner + '"');
+                    } catch (error) {
+                        return inner;
+                    }
+                }
+
+                return trimmed;
+            }
+
             function sanitizeLines(raw) {
                 if (typeof raw !== 'string') {
                     return [];
@@ -380,13 +416,9 @@ renderPage('Parser de logs Prosa', static function (): void {
                         return;
                     }
 
-                    sanitizedLine = sanitizedLine.replace(/""/g, '"');
-                    sanitizedLine = sanitizedLine.replace(/\\"/g, '"');
-                    sanitizedLine = sanitizedLine.replace(/^"+|"+$/g, '');
-                    sanitizedLine = sanitizedLine.replace(/^'+|'+$/g, '');
                     sanitizedLine = sanitizedLine.replace(/\\n/g, '');
                     sanitizedLine = sanitizedLine.replace(/,+\s*$/g, '');
-
+                    sanitizedLine = unwrapLine(sanitizedLine);
                     sanitizedLine = sanitizedLine.trim();
 
                     if (sanitizedLine !== '') {
