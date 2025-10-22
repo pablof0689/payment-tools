@@ -431,3 +431,74 @@ a:focus {
     display: grid;
     gap: 0.35rem;
 }
+
+.token-tool .token-panels {
+    display: grid;
+    gap: 2rem;
+}
+
+@media (min-width: 900px) {
+    .token-tool .token-panels {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.token-panel {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.token-panel .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+}
+
+.token-panel textarea {
+    min-height: 130px;
+    font-family: 'Courier New', Courier, monospace;
+    resize: vertical;
+}
+
+.token-feedback {
+    min-height: 1.25rem;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+.token-feedback.ok {
+    color: var(--color-primary);
+}
+
+.token-results {
+    overflow-x: auto;
+    border: 1px solid rgba(110, 255, 210, 0.15);
+    border-radius: var(--radius-medium);
+}
+
+.token-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.token-table thead {
+    background: rgba(110, 255, 210, 0.08);
+    text-align: left;
+}
+
+.token-table th,
+.token-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(110, 255, 210, 0.08);
+}
+
+.token-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.token-value {
+    font-family: 'Courier New', Courier, monospace;
+    display: inline-block;
+    white-space: pre;
+}
