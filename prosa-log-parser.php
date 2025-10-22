@@ -701,7 +701,7 @@ renderPage('Parser de logs Prosa', static function (): void {
                         const titleSpan = document.createElement('span');
                         titleSpan.className = 'prosa-column-title';
                         titleSpan.textContent = column.label;
-                        textWrapper.appendChild(checkbox);
+                        titleSpan.appendChild(checkbox);
                         textWrapper.appendChild(titleSpan);
 
                         if (column.hint) {
