@@ -39,6 +39,14 @@ renderPage('Inicio', static function (): void {
                 <p class="helper-text">Ideal para validar integraciones JWT o equivalentes propietarios.</p>
                 <a class="cta-button" href="token-parser.php">Abrir herramienta</a>
             </article>
+            <article class="tool-card">
+                <header>
+                    <h2>Prosa Log Parser</h2>
+                    <p>Resume hasta 500 registros de Kibana para identificar referencias, montos y PAN enmascarados.</p>
+                </header>
+                <p class="helper-text">Pega los logs crudos y obtén un JSON consolidado listo para compartir.</p>
+                <a class="cta-button" href="prosa-log-parser.php">Abrir herramienta</a>
+            </article>
         </div>
     </section>
     <?php

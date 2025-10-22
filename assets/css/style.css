@@ -283,6 +283,12 @@ a:focus {
     transform: translateY(-1px);
 }
 
+.tool-card .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
 .helper-text {
     font-size: 0.85rem;
     color: var(--color-muted);
@@ -396,6 +402,19 @@ a:focus {
     opacity: 0.6;
 }
 
+.button-secondary {
+    background: transparent;
+    border: 1px solid rgba(110, 255, 210, 0.35);
+    color: var(--color-text);
+}
+
+.button-secondary:hover,
+.button-secondary:focus {
+    background: rgba(110, 255, 210, 0.15);
+    color: var(--color-text);
+    filter: none;
+}
+
 .tlv-output {
     background: rgba(5, 5, 5, 0.55);
     border: 1px dashed rgba(110, 255, 210, 0.35);
@@ -501,4 +520,82 @@ a:focus {
     font-family: 'Courier New', Courier, monospace;
     display: inline-block;
     white-space: pre;
+}
+
+.prosa-tool textarea {
+    min-height: 220px;
+}
+
+.prosa-output textarea {
+    min-height: 180px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+.prosa-feedback {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.prosa-table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-small);
+    border: 1px solid rgba(110, 255, 210, 0.12);
+    background: rgba(5, 5, 5, 0.6);
+}
+
+.prosa-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+    font-size: 0.9rem;
+}
+
+.prosa-table th,
+.prosa-table td {
+    padding: 0.75rem 0.9rem;
+    border-bottom: 1px solid rgba(110, 255, 210, 0.12);
+    text-align: left;
+}
+
+.prosa-table tbody tr:hover {
+    background: rgba(110, 255, 210, 0.08);
+}
+
+.prosa-table th:first-child,
+.prosa-table td:first-child {
+    width: 60px;
+}
+
+.muted-text {
+    color: var(--color-muted);
+    font-style: italic;
+}
+
+.prosa-errors {
+    margin-top: 1rem;
+    background: rgba(5, 5, 5, 0.55);
+    border: 1px solid rgba(255, 110, 134, 0.35);
+    border-radius: var(--radius-small);
+    padding: 0.9rem 1.1rem;
+}
+
+.prosa-errors summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #ff9fb4;
+}
+
+.prosa-errors ul {
+    margin-top: 0.75rem;
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+    .prosa-table {
+        min-width: 640px;
+    }
 }
