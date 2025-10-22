@@ -7,7 +7,7 @@ return [
         'href' => 'index.php',
     ],
     [
-        'label' => 'Corrector de JSON',
+        'label' => 'Corrector JSON',
         'href' => 'json-corrector.php',
     ],
     [
