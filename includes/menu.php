@@ -19,7 +19,7 @@ return [
         'href' => 'token-parser.php',
     ],
     [
-        'label' => 'Extractor de valores',
-        'href' => '#',
+        'label' => 'Prosa Log Parser',
+        'href' => 'prosa-log-parser.php',
     ]
 ];
