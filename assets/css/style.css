@@ -1,5 +1,5 @@
 :root {
-    --color-background: #050505;
+    --color-background: #000000;
     --color-surface: #111315;
     --color-surface-alt: rgba(17, 19, 21, 0.7);
     --color-primary: #6effd2;
@@ -21,13 +21,20 @@
 }
 
 body {
-    background: radial-gradient(circle at top left, rgba(18, 52, 255, 0.25), transparent 55%),
-        radial-gradient(circle at bottom right, rgba(110, 255, 210, 0.1), transparent 60%),
-        var(--color-background);
+    background: var(--color-background);
     color: var(--color-text);
     font-family: var(--font-family-base);
     line-height: 1.6;
     min-height: 100vh;
+}
+
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.layout-main {
+    flex: 1;
     display: flex;
     flex-direction: column;
 }
@@ -44,16 +51,25 @@ a:focus {
 }
 
 .site-header {
-    backdrop-filter: blur(16px);
-    background: linear-gradient(120deg, rgba(17, 19, 21, 0.95), rgba(17, 19, 21, 0.65));
-    border-bottom: 1px solid rgba(110, 255, 210, 0.2);
+    background: var(--color-surface);
+    border-right: 1px solid rgba(110, 255, 210, 0.15);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
     position: sticky;
     top: 0;
-    z-index: 10;
-    padding: 1rem 2rem;
+    height: 100vh;
+    width: 280px;
+    padding: 2.5rem 2rem;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 2rem;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 1.5rem;
 }
 
@@ -69,9 +85,9 @@ a:focus {
     width: 48px;
     height: 48px;
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    background: var(--color-secondary);
     font-weight: 700;
-    color: #050505;
+    color: #ffffff;
     font-size: 1.2rem;
     letter-spacing: 2px;
 }
@@ -122,9 +138,15 @@ a:focus {
     border: 0;
 }
 
+.site-nav {
+    flex: 1;
+    width: 100%;
+}
+
 .site-nav ul {
     list-style: none;
     display: flex;
+    flex-direction: column;
     gap: 0.75rem;
 }
 
@@ -138,6 +160,8 @@ a:focus {
     gap: 0.5rem;
     font-weight: 500;
     transition: background var(--transition-base), border var(--transition-base), transform var(--transition-base);
+    width: 100%;
+    justify-content: flex-start;
 }
 
 .nav-item a:hover,
@@ -165,7 +189,7 @@ a:focus {
 }
 
 .hero-card {
-    background: linear-gradient(145deg, rgba(17, 19, 21, 0.95), rgba(17, 19, 21, 0.65));
+    background: var(--color-surface);
     border: 1px solid rgba(18, 52, 255, 0.2);
     border-radius: var(--radius-large);
     padding: 2.5rem;
@@ -242,10 +266,10 @@ a:focus {
 }
 
 .tool-card button {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    background: var(--color-secondary);
     border: none;
     border-radius: var(--radius-small);
-    color: #050505;
+    color: #ffffff;
     font-weight: 600;
     letter-spacing: 0.02em;
     padding: 0.9rem 1.2rem;
@@ -255,7 +279,7 @@ a:focus {
 
 .tool-card button:hover,
 .tool-card button:focus {
-    filter: brightness(1.05);
+    filter: brightness(1.1);
     transform: translateY(-1px);
 }
 
@@ -278,18 +302,41 @@ a:focus {
 }
 
 @media (max-width: 900px) {
+    .layout {
+        flex-direction: column;
+    }
+
     .site-header {
-        flex-wrap: wrap;
-        gap: 1rem;
+        position: relative;
+        width: 100%;
+        height: auto;
+        padding: 1.5rem 1.25rem;
+        border-right: none;
+        border-bottom: 1px solid rgba(110, 255, 210, 0.15);
+        box-shadow: none;
+        gap: 1.25rem;
+        overflow: visible;
+    }
+
+    .sidebar-top {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
     }
 
     .menu-toggle {
         display: flex;
+        align-self: flex-end;
     }
 
     .site-nav {
-        width: 100%;
         display: none;
+        width: 100%;
+        background: var(--color-surface);
+        border: 1px solid rgba(110, 255, 210, 0.15);
+        border-radius: var(--radius-small);
+        padding: 1rem;
     }
 
     .site-nav.open {
@@ -297,13 +344,10 @@ a:focus {
     }
 
     .site-nav ul {
-        flex-direction: column;
-        gap: 0.5rem;
-        padding-top: 0.75rem;
+        gap: 0.75rem;
     }
 
     .nav-item a {
-        width: 100%;
         justify-content: center;
     }
 }
@@ -334,8 +378,8 @@ a:focus {
     justify-content: center;
     padding: 0.85rem 1.4rem;
     border-radius: var(--radius-small);
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    color: #050505;
+    background: var(--color-secondary);
+    color: #ffffff;
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: transform var(--transition-base), filter var(--transition-base);
@@ -343,7 +387,7 @@ a:focus {
 
 .cta-button:hover,
 .cta-button:focus {
-    filter: brightness(1.05);
+    filter: brightness(1.1);
     transform: translateY(-1px);
 }
 

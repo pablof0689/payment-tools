@@ -21,42 +21,48 @@ function renderPage(string $title, callable $contentRenderer): void
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     </head>
     <body>
-        <header class="site-header">
-            <div class="branding">
-                <span class="site-logo">PT</span>
-                <div class="site-meta">
-                    <h1 class="site-title">Payment Tools</h1>
-                    <p class="site-subtitle">Panel de utilidades para soporte de gateway</p>
+        <div class="layout">
+            <header class="site-header">
+                <div class="sidebar-top">
+                    <div class="branding">
+                        <span class="site-logo">PT</span>
+                        <div class="site-meta">
+                            <h1 class="site-title">Payment Tools</h1>
+                            <p class="site-subtitle">Panel de utilidades para soporte de gateway</p>
+                        </div>
+                    </div>
+                    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">
+                        <span class="sr-only">Abrir menú</span>
+                        <span class="menu-bar"></span>
+                        <span class="menu-bar"></span>
+                        <span class="menu-bar"></span>
+                    </button>
                 </div>
+                <nav id="primary-navigation" class="site-nav" aria-label="Navegación principal">
+                    <ul>
+                        <?php foreach ($menuItems as $item): ?>
+                            <?php $isActive = $currentScript === basename($item['href']); ?>
+                            <li class="nav-item<?= $isActive ? ' active' : '' ?>">
+                                <a href="<?= htmlspecialchars($item['href']) ?>">
+                                    <span><?= htmlspecialchars($item['label']) ?></span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </nav>
+            </header>
+            <div class="layout-main">
+                <main class="site-main">
+                    <div class="content-wrapper">
+                        <?php $contentRenderer(); ?>
+                    </div>
+                </main>
+                <footer class="site-footer">
+                    <p>Estas herramientas fueron diseñadas y desarrolladas por Pablo Fernández.
+                        Visita <a href="https://pablof.uy" target="_blank" rel="noopener">pablof.uy</a> para conocer más.</p>
+                </footer>
             </div>
-            <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">
-                <span class="sr-only">Abrir menú</span>
-                <span class="menu-bar"></span>
-                <span class="menu-bar"></span>
-                <span class="menu-bar"></span>
-            </button>
-            <nav id="primary-navigation" class="site-nav" aria-label="Navegación principal">
-                <ul>
-                    <?php foreach ($menuItems as $item): ?>
-                        <?php $isActive = $currentScript === basename($item['href']); ?>
-                        <li class="nav-item<?= $isActive ? ' active' : '' ?>">
-                            <a href="<?= htmlspecialchars($item['href']) ?>">
-                                <span><?= htmlspecialchars($item['label']) ?></span>
-                            </a>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </nav>
-        </header>
-        <main class="site-main">
-            <div class="content-wrapper">
-                <?php $contentRenderer(); ?>
-            </div>
-        </main>
-        <footer class="site-footer">
-            <p>Estas herramientas fueron diseñadas y desarrolladas por Pablo Fernández.
-                Visita <a href="https://pablof.uy" target="_blank" rel="noopener">pablof.uy</a> para conocer más.</p>
-        </footer>
+        </div>
         <script src="assets/js/main.js"></script>
     </body>
     </html>
