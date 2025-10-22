@@ -551,21 +551,85 @@ a:focus {
 .prosa-columns-grid {
     margin-top: 0.75rem;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 0.6rem;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.prosa-column-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-small);
+    border: 1px solid rgba(110, 255, 210, 0.22);
+    background: rgba(5, 8, 12, 0.65);
+    box-shadow: inset 0 0 0 1px rgba(17, 19, 21, 0.45);
+}
+
+.prosa-column-group-header h4 {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+}
+
+.prosa-column-group-description {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    line-height: 1.4;
+    margin-top: 0.35rem;
+}
+
+.prosa-column-group-options {
+    display: grid;
+    gap: 0.55rem;
 }
 
 .prosa-column-option {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.9rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 10px;
+    background: rgba(17, 19, 21, 0.55);
+    border: 1px solid transparent;
+    transition: border var(--transition-base), background var(--transition-base);
+}
+
+.prosa-column-option:hover,
+.prosa-column-option:focus-within {
+    border-color: rgba(110, 255, 210, 0.4);
+    background: rgba(17, 19, 21, 0.75);
 }
 
 .prosa-column-option input {
     width: 16px;
     height: 16px;
     accent-color: var(--color-primary);
+    margin-top: 0.15rem;
+}
+
+.prosa-column-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.prosa-column-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.prosa-column-hint {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    font-family: 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    letter-spacing: 0.01em;
+}
+
+@media (min-width: 960px) {
+    .prosa-column-group-options {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
 }
 
 .prosa-export {
@@ -609,11 +673,6 @@ a:focus {
 
 .prosa-table tbody tr:hover {
     background: rgba(110, 255, 210, 0.08);
-}
-
-.prosa-table.prosa-table-with-index th:first-child,
-.prosa-table.prosa-table-with-index td:first-child {
-    width: 60px;
 }
 
 .muted-text {

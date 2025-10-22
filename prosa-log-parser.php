@@ -73,28 +73,273 @@ renderPage('Parser de logs Prosa', static function (): void {
                 return;
             }
 
-            const columnDefinitions = [
-                { key: 'registro', label: '#' },
-                { key: 'timestamp', label: 'Timestamp' },
-                { key: 'correlationId', label: 'Correlation ID' },
-                { key: 'endpoint', label: 'Endpoint' },
-                { key: 'referenceId', label: 'Referencia' },
-                { key: 'initiatorTraceId', label: 'Trace ID' },
-                { key: 'transactionType', label: 'Tipo de transacción' },
-                { key: 'amount', label: 'Monto' },
-                { key: 'currency', label: 'Moneda' },
-                { key: 'maskedPan', label: 'Masked PAN' },
-                { key: 'cardBrand', label: 'Marca' },
-                { key: 'cardProduct', label: 'Producto' },
-                { key: 'merchantName', label: 'Comercio' },
-                { key: 'merchantId', label: 'Merchant ID' },
-                { key: 'transactionUuid', label: 'Transaction UUID' },
-                { key: 'altPoiId', label: 'Alt POI ID' },
-                { key: 'poiId', label: 'POI ID' }
+            const columnGroups = [
+                {
+                    name: 'Metadatos del log',
+                    description: 'Identificadores principales del evento recibido.',
+                    columns: [
+                        {
+                            key: 'correlation_id',
+                            label: 'Correlation ID',
+                            hint: 'mdc.correlation_id',
+                            getValue: function (context) {
+                                return context.correlationId;
+                            }
+                        },
+                        {
+                            key: 'transactionUUID',
+                            label: 'Transaction UUID',
+                            hint: 'internal.transactionUUID',
+                            getValue: function (context) {
+                                return context.transactionUuid;
+                            }
+                        },
+                        {
+                            key: 'timestamp',
+                            label: 'Timestamp',
+                            hint: 'timestamp',
+                            getValue: function (context) {
+                                return context.timestamp;
+                            }
+                        }
+                    ]
+                },
+                {
+                    name: 'Entidad',
+                    description: 'Datos de la entidad vinculada al contrato.',
+                    columns: [
+                        {
+                            key: 'internal.entity.name',
+                            label: 'Nombre de la entidad',
+                            hint: 'internal.entity.name',
+                            getValue: function (context) {
+                                return asCleanString(context.entity.name);
+                            }
+                        },
+                        {
+                            key: 'internal.entity.mcc',
+                            label: 'MCC',
+                            hint: 'internal.entity.mcc',
+                            getValue: function (context) {
+                                return asCleanString(context.entity.mcc);
+                            }
+                        },
+                        {
+                            key: 'internal.entity.entityUid',
+                            label: 'Entity UID',
+                            hint: 'internal.entity.entityUid',
+                            getValue: function (context) {
+                                return asCleanString(context.entity.entityUid);
+                            }
+                        }
+                    ]
+                },
+                {
+                    name: 'Contrato de pago',
+                    description: 'Información del contrato y procesador configurado.',
+                    columns: [
+                        {
+                            key: 'internal.paymentContract.name',
+                            label: 'Nombre del contrato',
+                            hint: 'internal.paymentContract.name',
+                            getValue: function (context) {
+                                return asCleanString(context.paymentContract.name);
+                            }
+                        },
+                        {
+                            key: 'internal.paymentContract.merchantId',
+                            label: 'Merchant ID',
+                            hint: 'internal.paymentContract.merchantId',
+                            getValue: function (context) {
+                                return asCleanString(context.paymentContract.merchantId);
+                            }
+                        },
+                        {
+                            key: 'internal.paymentContract.contractUid',
+                            label: 'Contract UID',
+                            hint: 'internal.paymentContract.contractUid',
+                            getValue: function (context) {
+                                return asCleanString(context.paymentContract.contractUid);
+                            }
+                        },
+                        {
+                            key: 'internal.paymentContract.processor.type',
+                            label: 'Procesador - Tipo',
+                            hint: 'internal.paymentContract.processor.type',
+                            getValue: function (context) {
+                                return asCleanString(context.paymentProcessor.type);
+                            }
+                        },
+                        {
+                            key: 'internal.paymentContract.processor.acquirer',
+                            label: 'Procesador - Adquirente',
+                            hint: 'internal.paymentContract.processor.acquirer',
+                            getValue: function (context) {
+                                return asCleanString(context.paymentProcessor.acquirer);
+                            }
+                        }
+                    ]
+                },
+                {
+                    name: 'Terminal (POI)',
+                    description: 'Identificadores del punto de venta y del dispositivo.',
+                    columns: [
+                        {
+                            key: 'internal.poi.poiUid',
+                            label: 'POI UID',
+                            hint: 'internal.poi.poiUid',
+                            getValue: function (context) {
+                                return asCleanString(context.poi.poiUid);
+                            }
+                        },
+                        {
+                            key: 'internal.poi.device.serialNumber',
+                            label: 'Serial del dispositivo',
+                            hint: 'internal.poi.device.serialNumber',
+                            getValue: function (context) {
+                                return asCleanString(context.poiDevice.serialNumber);
+                            }
+                        },
+                        {
+                            key: 'internal.poi.device.deviceUid',
+                            label: 'Device UID',
+                            hint: 'internal.poi.device.deviceUid',
+                            getValue: function (context) {
+                                return asCleanString(context.poiDevice.deviceUid);
+                            }
+                        },
+                        {
+                            key: 'transaction.poi.software.version',
+                            label: 'Versión del software',
+                            hint: 'transaction.poi.software.version',
+                            getValue: function (context) {
+                                return context.softwareVersion;
+                            }
+                        },
+                        {
+                            key: 'transaction.poi.device.communicationMethod',
+                            label: 'Método de comunicación',
+                            hint: 'transaction.poi.device.communicationMethod',
+                            getValue: function (context) {
+                                return context.communicationMethod;
+                            }
+                        }
+                    ]
+                },
+                {
+                    name: 'Instrumento de pago',
+                    description: 'Detalles del medio de pago utilizado.',
+                    columns: [
+                        {
+                            key: 'paymentData.instrument.maskedCardNumber',
+                            label: 'Masked PAN',
+                            hint: 'paymentData.instrument.maskedCardNumber',
+                            getValue: function (context) {
+                                return asCleanString(context.instrument && context.instrument.maskedCardNumber);
+                            }
+                        },
+                        {
+                            key: 'paymentData.instrument.cardData.cardholderName',
+                            label: 'Nombre del tarjetahabiente',
+                            hint: 'paymentData.instrument.cardData.cardholderName',
+                            getValue: function (context) {
+                                return asCleanString(context.cardData.cardholderName);
+                            }
+                        },
+                        {
+                            key: 'paymentData.instrument.cardBrand',
+                            label: 'Marca de la tarjeta',
+                            hint: 'paymentData.instrument.cardBrand',
+                            getValue: function (context) {
+                                return asCleanString(context.instrument && context.instrument.cardBrand);
+                            }
+                        },
+                        {
+                            key: 'paymentData.instrument.cardProduct',
+                            label: 'Producto de la tarjeta',
+                            hint: 'paymentData.instrument.cardProduct',
+                            getValue: function (context) {
+                                return asCleanString(context.instrument && context.instrument.cardProduct);
+                            }
+                        }
+                    ]
+                },
+                {
+                    name: 'Contexto y transacción',
+                    description: 'Información de la operación registrada.',
+                    columns: [
+                        {
+                            key: 'paymentContext.entryMode',
+                            label: 'Modo de entrada',
+                            hint: 'paymentContext.entryMode',
+                            getValue: function (context) {
+                                return context.entryMode;
+                            }
+                        },
+                        {
+                            key: 'transaction.referenceId',
+                            label: 'Referencia',
+                            hint: 'transaction.referenceId',
+                            getValue: function (context) {
+                                return asCleanString(context.transaction.referenceId);
+                            }
+                        },
+                        {
+                            key: 'transaction.transactionType',
+                            label: 'Tipo de transacción',
+                            hint: 'transaction.transactionType',
+                            getValue: function (context) {
+                                return asCleanString(context.transaction.transactionType);
+                            }
+                        },
+                        {
+                            key: 'transaction.totalAmount.currencyCode',
+                            label: 'Moneda',
+                            hint: 'transaction.totalAmount.currencyCode',
+                            getValue: function (context) {
+                                return asCleanString(context.totalAmount.currencyCode);
+                            }
+                        },
+                        {
+                            key: 'transaction.totalAmount.value',
+                            label: 'Importe',
+                            hint: 'transaction.totalAmount.value',
+                            getValue: function (context) {
+                                return asCleanString(context.totalAmount.value);
+                            }
+                        },
+                        {
+                            key: 'transaction.createdDateTime',
+                            label: 'Fecha de creación',
+                            hint: 'transaction.createdDateTime',
+                            getValue: function (context) {
+                                return asCleanString(context.transaction.createdDateTime);
+                            }
+                        }
+                    ]
+                }
             ];
 
-            const defaultColumnKeys = ['registro', 'referenceId', 'maskedPan', 'cardBrand', 'amount', 'currency', 'merchantName', 'endpoint'];
-            const selectedColumns = new Set(defaultColumnKeys);
+            const columnDefinitions = [];
+            columnGroups.forEach(function (group) {
+                group.columns.forEach(function (column) {
+                    if (!column.exportLabel) {
+                        column.exportLabel = column.key;
+                    }
+                    columnDefinitions.push(column);
+                });
+            });
+
+            const defaultColumnKeys = ['correlation_id', 'transactionUUID', 'timestamp'];
+            const selectedColumns = new Set(defaultColumnKeys.filter(function (key) {
+                return columnDefinitions.some(function (column) {
+                    return column.key === key;
+                });
+            }));
+
+            if (selectedColumns.size === 0 && columnDefinitions.length > 0) {
+                selectedColumns.add(columnDefinitions[0].key);
+            }
             let processedRows = [];
 
             function escapeHtml(value) {
@@ -135,18 +380,12 @@ renderPage('Parser de logs Prosa', static function (): void {
                         return;
                     }
 
-                    const hasOuterDoubleQuotes = sanitizedLine.startsWith('"') && sanitizedLine.endsWith('"');
-                    const hasOuterSingleQuotes = sanitizedLine.startsWith("'") && sanitizedLine.endsWith("'");
-                    const hasOuterQuotes = hasOuterDoubleQuotes || hasOuterSingleQuotes;
-
-                    if (hasOuterQuotes) {
-                        sanitizedLine = sanitizedLine.replace(/""/g, '"');
-                        sanitizedLine = sanitizedLine.replace(/\\""/g, '"');
-                        sanitizedLine = sanitizedLine.replace(/^"+|"+$/g, '');
-                        sanitizedLine = sanitizedLine.replace(/^'+|'+$/g, '');
-                        sanitizedLine = sanitizedLine.replace(/\\n/g, '');
-                        sanitizedLine = sanitizedLine.replace(/,+\s*$/g, '');
-                    }
+                    sanitizedLine = sanitizedLine.replace(/""/g, '"');
+                    sanitizedLine = sanitizedLine.replace(/\\"/g, '"');
+                    sanitizedLine = sanitizedLine.replace(/^"+|"+$/g, '');
+                    sanitizedLine = sanitizedLine.replace(/^'+|'+$/g, '');
+                    sanitizedLine = sanitizedLine.replace(/\\n/g, '');
+                    sanitizedLine = sanitizedLine.replace(/,+\s*$/g, '');
 
                     sanitizedLine = sanitizedLine.trim();
 
@@ -251,12 +490,47 @@ renderPage('Parser de logs Prosa', static function (): void {
                 return null;
             }
 
-            function extractEndpoint(message) {
-                if (typeof message !== 'string') {
+            function normaliseEntryMode(value) {
+                if (Array.isArray(value)) {
+                    const parts = value.map(function (item) {
+                        const cleaned = asCleanString(item);
+                        return cleaned || null;
+                    }).filter(function (item) {
+                        return item !== null;
+                    });
+
+                    return parts.length > 0 ? parts.join(', ') : null;
+                }
+
+                return asCleanString(value);
+            }
+
+            function extractSoftwareVersion(value) {
+                if (Array.isArray(value)) {
+                    for (let index = 0; index < value.length; index += 1) {
+                        const candidate = value[index];
+
+                        if (typeof candidate === 'string') {
+                            const cleanedString = asCleanString(candidate);
+                            if (cleanedString) {
+                                return cleanedString;
+                            }
+                        } else if (candidate && typeof candidate === 'object') {
+                            const cleanedVersion = asCleanString(candidate.version);
+                            if (cleanedVersion) {
+                                return cleanedVersion;
+                            }
+                        }
+                    }
+
                     return null;
                 }
-                const match = message.match(/ENDPOINT:\s*([^\n\r<{]+)/i);
-                return match ? match[1].trim() : null;
+
+                if (value && typeof value === 'object') {
+                    return asCleanString(value.version);
+                }
+
+                return asCleanString(value);
             }
 
             function collectSegments(raw) {
@@ -296,42 +570,71 @@ renderPage('Parser de logs Prosa', static function (): void {
                         }
 
                         const detail = embedded.payload || {};
+                        const internal = detail.internal && typeof detail.internal === 'object' ? detail.internal : {};
+                        const entity = internal.entity && typeof internal.entity === 'object' ? internal.entity : {};
+                        const poi = internal.poi && typeof internal.poi === 'object' ? internal.poi : {};
+                        const poiDevice = poi.device && typeof poi.device === 'object' ? poi.device : {};
+                        const paymentContract = internal.paymentContract && typeof internal.paymentContract === 'object' ? internal.paymentContract : {};
+                        const paymentProcessor = paymentContract.processor && typeof paymentContract.processor === 'object' ? paymentContract.processor : {};
+                        const paymentContext = detail.paymentContext && typeof detail.paymentContext === 'object' ? detail.paymentContext : {};
+                        const paymentData = detail.paymentData && typeof detail.paymentData === 'object' ? detail.paymentData : {};
                         const transaction = detail.transaction && typeof detail.transaction === 'object' ? detail.transaction : {};
                         const totalAmount = transaction.totalAmount && typeof transaction.totalAmount === 'object' ? transaction.totalAmount : {};
-                        const merchant = transaction.merchant && typeof transaction.merchant === 'object' ? transaction.merchant : {};
-                        const internal = detail.internal && typeof detail.internal === 'object' ? detail.internal : {};
-                        const poi = internal.poi && typeof internal.poi === 'object' ? internal.poi : {};
+                        const transactionPoi = transaction.poi && typeof transaction.poi === 'object' ? transaction.poi : {};
+                        const transactionPoiDevice = transactionPoi.device && typeof transactionPoi.device === 'object' ? transactionPoi.device : {};
+                        const transactionPoiSoftware = transactionPoi.software;
 
                         let instrument = null;
-                        if (detail.paymentData && typeof detail.paymentData === 'object' && Array.isArray(detail.paymentData.instrument) && detail.paymentData.instrument.length > 0) {
-                            const candidate = detail.paymentData.instrument[0];
-                            if (candidate && typeof candidate === 'object') {
-                                instrument = candidate;
+                        if (Array.isArray(paymentData.instrument)) {
+                            for (let instrumentIndex = 0; instrumentIndex < paymentData.instrument.length; instrumentIndex += 1) {
+                                const candidate = paymentData.instrument[instrumentIndex];
+                                if (candidate && typeof candidate === 'object') {
+                                    instrument = candidate;
+                                    break;
+                                }
                             }
+                        } else if (paymentData.instrument && typeof paymentData.instrument === 'object') {
+                            instrument = paymentData.instrument;
                         }
 
-                        const merchantId = asCleanString(merchant.merchantId);
-                        const merchantName = asCleanString(merchant.name);
+                        const cardData = instrument && typeof instrument.cardData === 'object' ? instrument.cardData : {};
 
-                        const entry = {
-                            registro: segmentIndex + 1,
-                            timestamp: asCleanString(base.timestamp),
-                            correlationId: asCleanString(getNested(base, ['mdc', 'correlation_id'])) || asCleanString(getNested(base, ['mdc', 'correlationId'])),
-                            endpoint: asCleanString(extractEndpoint(message)),
-                            referenceId: asCleanString(transaction.referenceId),
-                            initiatorTraceId: asCleanString(transaction.initiatorTraceId),
-                            transactionType: asCleanString(transaction.transactionType),
-                            amount: asCleanString(totalAmount.value),
-                            currency: asCleanString(totalAmount.currencyCode),
-                            maskedPan: instrument ? asCleanString(instrument.maskedCardNumber) : null,
-                            cardBrand: instrument ? asCleanString(instrument.cardBrand) : null,
-                            cardProduct: instrument ? asCleanString(instrument.cardProduct) : null,
-                            merchantId,
-                            merchantName: merchantName || merchantId,
-                            transactionUuid: asCleanString(internal.transactionUUID),
-                            altPoiId: asCleanString(poi.altVfiPoiId),
-                            poiId: asCleanString(transaction.poi && typeof transaction.poi === 'object' ? transaction.poi.poiId : null)
+                        const correlationId = asCleanString(getNested(base, ['mdc', 'correlation_id'])) || asCleanString(getNested(base, ['mdc', 'correlationId']));
+                        const timestamp = asCleanString(base.timestamp);
+                        const transactionUuid = asCleanString(internal.transactionUUID);
+                        const entryMode = normaliseEntryMode(paymentContext.entryMode);
+                        const softwareVersion = extractSoftwareVersion(transactionPoiSoftware);
+                        const communicationMethod = asCleanString(transactionPoiDevice.communicationMethod);
+
+                        const context = {
+                            base,
+                            detail,
+                            internal,
+                            entity,
+                            poi,
+                            poiDevice,
+                            paymentContract,
+                            paymentProcessor,
+                            paymentContext,
+                            paymentData,
+                            instrument,
+                            cardData,
+                            transaction,
+                            totalAmount,
+                            transactionPoi,
+                            transactionPoiDevice,
+                            correlationId,
+                            timestamp,
+                            transactionUuid,
+                            entryMode,
+                            softwareVersion,
+                            communicationMethod
                         };
+
+                        const entry = {};
+                        columnDefinitions.forEach(function (column) {
+                            entry[column.key] = column.getValue(context);
+                        });
 
                         results.push(entry);
                     } catch (error) {
@@ -357,24 +660,63 @@ renderPage('Parser de logs Prosa', static function (): void {
                 columnOptions.innerHTML = '';
                 const fragment = document.createDocumentFragment();
 
-                columnDefinitions.forEach(function (column) {
-                    const optionLabel = document.createElement('label');
-                    optionLabel.className = 'prosa-column-option';
+                columnGroups.forEach(function (group) {
+                    const groupWrapper = document.createElement('section');
+                    groupWrapper.className = 'prosa-column-group';
 
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.value = column.key;
-                    checkbox.checked = selectedColumns.has(column.key);
-                    checkbox.addEventListener('change', function (event) {
-                        handleColumnToggle(column.key, checkbox.checked, event.target);
+                    const header = document.createElement('div');
+                    header.className = 'prosa-column-group-header';
+
+                    const title = document.createElement('h4');
+                    title.textContent = group.name;
+                    header.appendChild(title);
+
+                    if (group.description) {
+                        const description = document.createElement('p');
+                        description.className = 'prosa-column-group-description';
+                        description.textContent = group.description;
+                        header.appendChild(description);
+                    }
+
+                    groupWrapper.appendChild(header);
+
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'prosa-column-group-options';
+
+                    group.columns.forEach(function (column) {
+                        const optionLabel = document.createElement('label');
+                        optionLabel.className = 'prosa-column-option';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = column.key;
+                        checkbox.checked = selectedColumns.has(column.key);
+                        checkbox.addEventListener('change', function (event) {
+                            handleColumnToggle(column.key, checkbox.checked, event.target);
+                        });
+
+                        const textWrapper = document.createElement('div');
+                        textWrapper.className = 'prosa-column-text';
+
+                        const titleSpan = document.createElement('span');
+                        titleSpan.className = 'prosa-column-title';
+                        titleSpan.textContent = column.label;
+                        textWrapper.appendChild(titleSpan);
+
+                        if (column.hint) {
+                            const hintSpan = document.createElement('span');
+                            hintSpan.className = 'prosa-column-hint';
+                            hintSpan.textContent = column.hint;
+                            textWrapper.appendChild(hintSpan);
+                        }
+
+                        optionLabel.appendChild(checkbox);
+                        optionLabel.appendChild(textWrapper);
+                        optionsContainer.appendChild(optionLabel);
                     });
 
-                    const text = document.createElement('span');
-                    text.textContent = column.label;
-
-                    optionLabel.appendChild(checkbox);
-                    optionLabel.appendChild(text);
-                    fragment.appendChild(optionLabel);
+                    groupWrapper.appendChild(optionsContainer);
+                    fragment.appendChild(groupWrapper);
                 });
 
                 columnOptions.appendChild(fragment);
@@ -406,14 +748,6 @@ renderPage('Parser de logs Prosa', static function (): void {
 
             function renderTable(rows) {
                 const visibleColumns = getVisibleColumns();
-
-                if (table) {
-                    if (selectedColumns.has('registro')) {
-                        table.classList.add('prosa-table-with-index');
-                    } else {
-                        table.classList.remove('prosa-table-with-index');
-                    }
-                }
 
                 if (visibleColumns.length === 0) {
                     tableHeadRow.innerHTML = '<th>Sin columnas seleccionadas</th>';
@@ -499,7 +833,8 @@ renderPage('Parser de logs Prosa', static function (): void {
 
             function buildCsv(rows, columns) {
                 const header = columns.map(function (column) {
-                    return escapeCsvValue(column.label);
+                    const headerLabel = column.exportLabel || column.label;
+                    return escapeCsvValue(headerLabel);
                 }).join(',');
 
                 const lines = rows.map(function (row) {
