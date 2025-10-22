@@ -654,6 +654,7 @@ a:focus {
     border-radius: var(--radius-small);
     border: 1px solid rgba(110, 255, 210, 0.12);
     background: rgba(5, 5, 5, 0.6);
+    max-width:1190px;
 }
 
 .prosa-table {
