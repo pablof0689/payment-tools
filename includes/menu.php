@@ -19,7 +19,7 @@ return [
         'href' => 'token-parser.php',
     ],
     [
-        'label' => 'Parser de Tokens',
-        'href' => 'token-parser.php',
+        'label' => 'Extractor de valores',
+        'href' => '#',
     ]
 ];
