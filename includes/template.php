@@ -25,7 +25,6 @@ function renderPage(string $title, callable $contentRenderer): void
             <header class="site-header">
                 <div class="sidebar-top">
                     <div class="branding">
-                        <span class="site-logo">PT</span>
                         <div class="site-meta">
                             <h1 class="site-title">Payment Tools</h1>
                             <p class="site-subtitle">Panel de utilidades para soporte de gateway</p>
