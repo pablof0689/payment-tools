@@ -556,7 +556,7 @@ a:focus {
 
 .prosa-column-group {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 0.75rem;
     padding: 0.9rem 1rem;
     border-radius: var(--radius-small);
