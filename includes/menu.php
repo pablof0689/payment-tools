@@ -18,4 +18,8 @@ return [
         'label' => 'Parser de Tokens',
         'href' => 'token-parser.php',
     ],
+    [
+        'label' => 'Parser de Tokens',
+        'href' => 'token-parser.php',
+    ]
 ];
