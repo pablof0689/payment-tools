@@ -342,6 +342,24 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
             let processedRows = [];
 
+            const filterableColumnKeys = new Set([
+                'internal.entity.name',
+                'internal.paymentContract.processor.acquirer',
+                'paymentData.instrument.cardBrand',
+                'paymentData.instrument.cardProduct',
+                'paymentContext.entryMode',
+                'transaction.transactionType',
+                'transaction.poi.software.version',
+                'transaction.poi.device.communicationMethod'
+            ]);
+            const activeFilters = new Map();
+            const filterControls = new Map();
+            const filterValueLabels = new Map();
+            let filteredRowsCache = [];
+            let openFilterKey = null;
+            let filterEventsBound = false;
+            const EMPTY_FILTER_TOKEN = '__PAYMENT_TOOLS_FILTER_EMPTY__';
+
             function escapeHtml(value) {
                 return String(value).replace(/[&<>"']/g, function (character) {
                     switch (character) {
@@ -769,7 +787,7 @@ renderPage('Parser de logs Prosa', static function (): void {
                     selectedColumns.delete(key);
                 }
 
-                renderTable(processedRows);
+                renderTable(processedRows, true);
                 updateExportButtons();
             }
 
@@ -780,32 +798,492 @@ renderPage('Parser de logs Prosa', static function (): void {
                 return escapeHtml(String(value));
             }
 
-            function renderTable(rows) {
-                const visibleColumns = getVisibleColumns();
-
-                if (visibleColumns.length === 0) {
-                    tableHeadRow.innerHTML = '<th>Sin columnas seleccionadas</th>';
-                    tableBody.innerHTML = '<tr><td>Selecciona al menos una columna para visualizar los datos.</td></tr>';
+            function ensureFilterEventHandlers() {
+                if (filterEventsBound) {
                     return;
                 }
 
-                tableHeadRow.innerHTML = visibleColumns.map(function (column) {
-                    return '<th>' + escapeHtml(column.label) + '</th>';
-                }).join('');
+                document.addEventListener('click', handleDocumentClick);
+                document.addEventListener('keydown', handleDocumentKeyDown);
+                filterEventsBound = true;
+            }
 
+            function toFilterToken(value) {
+                if (value === null || value === undefined || value === '') {
+                    return EMPTY_FILTER_TOKEN;
+                }
+
+                return String(value);
+            }
+
+            function getFilterDisplayLabel(token) {
+                if (token === EMPTY_FILTER_TOKEN) {
+                    return 'Vacío';
+                }
+
+                return token;
+            }
+
+            function getFilteredRows(rows, excludeKey) {
                 if (!Array.isArray(rows) || rows.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="' + visibleColumns.length + '">Aún no hay datos procesados.</td></tr>';
+                    return [];
+                }
+
+                const shouldBypassFilters = activeFilters.size === 0 || (excludeKey && activeFilters.size === 1 && activeFilters.has(excludeKey));
+
+                if (shouldBypassFilters) {
+                    return rows.slice();
+                }
+
+                return rows.filter(function (row) {
+                    for (const [key, selection] of activeFilters.entries()) {
+                        if (excludeKey && key === excludeKey) {
+                            continue;
+                        }
+
+                        if (!(selection instanceof Set)) {
+                            continue;
+                        }
+
+                        if (selection.size === 0) {
+                            return false;
+                        }
+
+                        const token = toFilterToken(row[key] ?? null);
+                        if (!selection.has(token)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+            }
+
+            function computeFilterOptionEntries(columnKey) {
+                const rowsForOptions = getFilteredRows(processedRows, columnKey);
+                const labelMap = filterValueLabels.get(columnKey) || new Map();
+                const optionsMap = new Map();
+
+                rowsForOptions.forEach(function (row) {
+                    const rawValue = row[columnKey] ?? null;
+                    const token = toFilterToken(rawValue);
+                    const label = token === EMPTY_FILTER_TOKEN ? 'Vacío' : String(rawValue);
+
+                    if (!labelMap.has(token)) {
+                        labelMap.set(token, label);
+                    }
+
+                    const existing = optionsMap.get(token);
+                    if (existing) {
+                        existing.count += 1;
+                    } else {
+                        optionsMap.set(token, { token, label: labelMap.get(token) || label, count: 1 });
+                    }
+                });
+
+                const selectedTokens = activeFilters.get(columnKey);
+                if (selectedTokens instanceof Set) {
+                    selectedTokens.forEach(function (token) {
+                        if (!optionsMap.has(token)) {
+                            const label = labelMap.get(token) || getFilterDisplayLabel(token);
+                            optionsMap.set(token, { token, label, count: 0 });
+                        }
+                    });
+                }
+
+                filterValueLabels.set(columnKey, labelMap);
+
+                const entries = Array.from(optionsMap.values());
+
+                entries.sort(function (a, b) {
+                    return a.label.localeCompare(b.label, undefined, { sensitivity: 'base', numeric: true });
+                });
+
+                return entries;
+            }
+
+            function buildTableHeader(columns) {
+                filterControls.clear();
+                tableHeadRow.innerHTML = '';
+                openFilterKey = null;
+
+                const fragment = document.createDocumentFragment();
+                let hasFilterableColumns = false;
+
+                columns.forEach(function (column) {
+                    const th = document.createElement('th');
+                    const headerCell = document.createElement('div');
+                    headerCell.className = 'prosa-header-cell';
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'prosa-header-label';
+                    labelSpan.textContent = column.label;
+                    headerCell.appendChild(labelSpan);
+
+                    if (filterableColumnKeys.has(column.key)) {
+                        hasFilterableColumns = true;
+
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'prosa-filter-wrapper';
+
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'prosa-filter-button';
+                        button.setAttribute('aria-label', 'Filtrar ' + column.label);
+                        button.textContent = 'Filtrar';
+
+                        const panel = document.createElement('div');
+                        panel.className = 'prosa-filter-panel';
+                        panel.hidden = true;
+
+                        wrapper.appendChild(button);
+                        wrapper.appendChild(panel);
+
+                        const config = {
+                            key: column.key,
+                            button,
+                            panel,
+                            optionsContainer: null,
+                            selectAllCheckbox: null
+                        };
+
+                        filterControls.set(column.key, config);
+
+                        button.addEventListener('click', function (event) {
+                            event.stopPropagation();
+                            toggleFilterPanel(column.key);
+                        });
+
+                        headerCell.appendChild(wrapper);
+                    }
+
+                    th.appendChild(headerCell);
+                    fragment.appendChild(th);
+                });
+
+                tableHeadRow.appendChild(fragment);
+
+                if (hasFilterableColumns) {
+                    ensureFilterEventHandlers();
+                }
+            }
+
+            function renderTableBodyContent(rows, columns, emptyMessage) {
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    const message = typeof emptyMessage === 'string' && emptyMessage !== '' ? emptyMessage : 'Aún no hay datos procesados.';
+                    tableBody.innerHTML = '<tr><td colspan="' + columns.length + '">' + escapeHtml(message) + '</td></tr>';
                     return;
                 }
 
                 const html = rows.map(function (row) {
-                    const cells = visibleColumns.map(function (column) {
+                    const cells = columns.map(function (column) {
                         return '<td>' + formatCell(row[column.key]) + '</td>';
                     }).join('');
                     return '<tr>' + cells + '</tr>';
                 }).join('');
 
                 tableBody.innerHTML = html;
+            }
+
+            function syncSelectAllState(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config || !config.selectAllCheckbox || !config.optionsContainer) {
+                    return;
+                }
+
+                const checkboxes = config.optionsContainer.querySelectorAll('input[data-filter-option]');
+                const total = checkboxes.length;
+                let selected = 0;
+
+                checkboxes.forEach(function (checkbox) {
+                    if (checkbox.checked) {
+                        selected += 1;
+                    }
+                });
+
+                if (total === 0 || selected === total) {
+                    config.selectAllCheckbox.checked = true;
+                    config.selectAllCheckbox.indeterminate = false;
+                } else if (selected === 0) {
+                    config.selectAllCheckbox.checked = false;
+                    config.selectAllCheckbox.indeterminate = false;
+                } else {
+                    config.selectAllCheckbox.checked = false;
+                    config.selectAllCheckbox.indeterminate = true;
+                }
+            }
+
+            function renderFilterPanelContent(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config) {
+                    return;
+                }
+
+                const panel = config.panel;
+                panel.innerHTML = '';
+
+                const entries = computeFilterOptionEntries(columnKey);
+                const totalOptions = entries.length;
+                const selectedTokens = activeFilters.get(columnKey);
+
+                const selectAllLabel = document.createElement('label');
+                selectAllLabel.className = 'prosa-filter-option prosa-filter-option--select-all';
+
+                const selectAllCheckbox = document.createElement('input');
+                selectAllCheckbox.type = 'checkbox';
+                selectAllCheckbox.className = 'prosa-filter-checkbox';
+                selectAllCheckbox.dataset.filterSelectAll = 'true';
+
+                let selectAllChecked = true;
+                let selectAllIndeterminate = false;
+
+                if (totalOptions === 0) {
+                    selectAllChecked = true;
+                    selectAllIndeterminate = false;
+                } else if (selectedTokens instanceof Set) {
+                    if (selectedTokens.size === 0) {
+                        selectAllChecked = false;
+                    } else if (selectedTokens.size < totalOptions) {
+                        selectAllChecked = false;
+                        selectAllIndeterminate = true;
+                    }
+                }
+
+                selectAllCheckbox.checked = selectAllChecked;
+                selectAllCheckbox.indeterminate = selectAllIndeterminate;
+
+                const selectAllText = document.createElement('span');
+                selectAllText.className = 'prosa-filter-option-label';
+                selectAllText.textContent = 'Seleccionar todo';
+
+                selectAllLabel.appendChild(selectAllCheckbox);
+                selectAllLabel.appendChild(selectAllText);
+
+                panel.appendChild(selectAllLabel);
+
+                const optionsContainer = document.createElement('div');
+                optionsContainer.className = 'prosa-filter-options';
+
+                entries.forEach(function (entry) {
+                    const optionLabel = document.createElement('label');
+                    optionLabel.className = 'prosa-filter-option';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'prosa-filter-checkbox';
+                    checkbox.dataset.filterOption = 'true';
+                    checkbox.value = entry.token;
+
+                    let isChecked = true;
+                    if (selectedTokens instanceof Set) {
+                        if (selectedTokens.size === 0) {
+                            isChecked = false;
+                        } else {
+                            isChecked = selectedTokens.has(entry.token);
+                        }
+                    }
+
+                    checkbox.checked = isChecked;
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'prosa-filter-option-label';
+                    if (typeof entry.count === 'number') {
+                        labelSpan.textContent = entry.label + ' (' + entry.count + ')';
+                    } else {
+                        labelSpan.textContent = entry.label;
+                    }
+
+                    optionLabel.appendChild(checkbox);
+                    optionLabel.appendChild(labelSpan);
+
+                    optionsContainer.appendChild(optionLabel);
+
+                    checkbox.addEventListener('change', function () {
+                        handleOptionChange(columnKey);
+                    });
+                });
+
+                panel.appendChild(optionsContainer);
+
+                const actions = document.createElement('div');
+                actions.className = 'prosa-filter-actions';
+
+                const resetButton = document.createElement('button');
+                resetButton.type = 'button';
+                resetButton.className = 'prosa-filter-reset';
+                resetButton.textContent = 'Restablecer';
+                resetButton.addEventListener('click', function () {
+                    activeFilters.delete(columnKey);
+                    renderFilterPanelContent(columnKey);
+                    updateFilterButtonState(columnKey);
+                    renderTable(processedRows, false);
+                    updateExportButtons();
+                });
+
+                actions.appendChild(resetButton);
+                panel.appendChild(actions);
+
+                selectAllCheckbox.addEventListener('change', function () {
+                    handleSelectAllChange(columnKey, selectAllCheckbox.checked);
+                });
+
+                config.selectAllCheckbox = selectAllCheckbox;
+                config.optionsContainer = optionsContainer;
+
+                syncSelectAllState(columnKey);
+            }
+
+            function updateFilterButtonState(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config) {
+                    return;
+                }
+
+                const isFiltered = activeFilters.has(columnKey);
+                config.button.classList.toggle('is-filtered', isFiltered);
+                config.button.setAttribute('aria-pressed', isFiltered ? 'true' : 'false');
+            }
+
+            function updateAllFilterPanels() {
+                filterControls.forEach(function (_, columnKey) {
+                    renderFilterPanelContent(columnKey);
+                    updateFilterButtonState(columnKey);
+                });
+            }
+
+            function handleSelectAllChange(columnKey, shouldSelectAll) {
+                const config = filterControls.get(columnKey);
+                if (!config || !config.optionsContainer) {
+                    return;
+                }
+
+                const checkboxes = config.optionsContainer.querySelectorAll('input[data-filter-option]');
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = shouldSelectAll;
+                });
+
+                updateFilterStateFromOptions(columnKey);
+            }
+
+            function handleOptionChange(columnKey) {
+                updateFilterStateFromOptions(columnKey);
+            }
+
+            function updateFilterStateFromOptions(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config || !config.optionsContainer) {
+                    return;
+                }
+
+                const checkboxes = config.optionsContainer.querySelectorAll('input[data-filter-option]');
+                const total = checkboxes.length;
+                const selectedTokens = new Set();
+
+                checkboxes.forEach(function (checkbox) {
+                    if (checkbox.checked) {
+                        selectedTokens.add(checkbox.value);
+                    }
+                });
+
+                if (total === 0) {
+                    activeFilters.delete(columnKey);
+                } else if (selectedTokens.size === 0) {
+                    activeFilters.set(columnKey, new Set());
+                } else if (selectedTokens.size === total) {
+                    activeFilters.delete(columnKey);
+                } else {
+                    activeFilters.set(columnKey, selectedTokens);
+                }
+
+                syncSelectAllState(columnKey);
+                updateFilterButtonState(columnKey);
+                renderTable(processedRows, false);
+                updateExportButtons();
+            }
+
+            function toggleFilterPanel(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config) {
+                    return;
+                }
+
+                if (openFilterKey && openFilterKey !== columnKey) {
+                    closeFilterPanel(openFilterKey);
+                }
+
+                const shouldOpen = config.panel.hidden;
+                if (shouldOpen) {
+                    renderFilterPanelContent(columnKey);
+                    config.panel.hidden = false;
+                    config.button.classList.add('is-open');
+                    openFilterKey = columnKey;
+                } else {
+                    closeFilterPanel(columnKey);
+                }
+            }
+
+            function closeFilterPanel(columnKey) {
+                const config = filterControls.get(columnKey);
+                if (!config) {
+                    return;
+                }
+
+                config.panel.hidden = true;
+                config.button.classList.remove('is-open');
+
+                if (openFilterKey === columnKey) {
+                    openFilterKey = null;
+                }
+            }
+
+            function handleDocumentClick(event) {
+                if (!openFilterKey) {
+                    return;
+                }
+
+                const config = filterControls.get(openFilterKey);
+                if (!config) {
+                    openFilterKey = null;
+                    return;
+                }
+
+                if (config.panel.contains(event.target) || config.button.contains(event.target)) {
+                    return;
+                }
+
+                closeFilterPanel(openFilterKey);
+            }
+
+            function handleDocumentKeyDown(event) {
+                if (event.key === 'Escape' && openFilterKey) {
+                    closeFilterPanel(openFilterKey);
+                }
+            }
+
+            function renderTable(rows, refreshHeader) {
+                const visibleColumns = getVisibleColumns();
+
+                if (visibleColumns.length === 0) {
+                    tableHeadRow.innerHTML = '<th>Sin columnas seleccionadas</th>';
+                    tableBody.innerHTML = '<tr><td>Selecciona al menos una columna para visualizar los datos.</td></tr>';
+                    filterControls.clear();
+                    filteredRowsCache = [];
+                    openFilterKey = null;
+                    return;
+                }
+
+                if (refreshHeader) {
+                    buildTableHeader(visibleColumns);
+                }
+
+                filteredRowsCache = getFilteredRows(rows);
+                const hasProcessedData = Array.isArray(rows) && rows.length > 0;
+                const emptyMessage = hasProcessedData ? 'No hay registros que coincidan con la selección actual.' : 'Aún no hay datos procesados.';
+                renderTableBodyContent(filteredRowsCache, visibleColumns, emptyMessage);
+
+                if (filterControls.size > 0) {
+                    updateAllFilterPanels();
+                }
             }
 
             function renderSummary(totalSegments, successes, errorCountValue) {
@@ -839,8 +1317,8 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
 
             function updateExportButtons() {
-                const hasData = Array.isArray(processedRows) && processedRows.length > 0;
-                const hasColumns = selectedColumns.size > 0;
+                const hasData = Array.isArray(filteredRowsCache) && filteredRowsCache.length > 0;
+                const hasColumns = getVisibleColumns().length > 0;
                 const disabled = !(hasData && hasColumns);
 
                 exportJsonButton.disabled = disabled;
@@ -895,12 +1373,13 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
 
             function exportAsJson() {
-                if (!Array.isArray(processedRows) || processedRows.length === 0) {
+                const visibleColumns = getVisibleColumns();
+
+                if (!Array.isArray(filteredRowsCache) || filteredRowsCache.length === 0 || visibleColumns.length === 0) {
                     return;
                 }
 
-                const visibleColumns = getVisibleColumns();
-                const data = processedRows.map(function (row) {
+                const data = filteredRowsCache.map(function (row) {
                     const item = {};
                     visibleColumns.forEach(function (column) {
                         item[column.key] = row[column.key] ?? null;
@@ -913,12 +1392,13 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
 
             function exportAsCsv() {
-                if (!Array.isArray(processedRows) || processedRows.length === 0) {
+                const visibleColumns = getVisibleColumns();
+
+                if (!Array.isArray(filteredRowsCache) || filteredRowsCache.length === 0 || visibleColumns.length === 0) {
                     return;
                 }
 
-                const visibleColumns = getVisibleColumns();
-                const csvContent = buildCsv(processedRows, visibleColumns);
+                const csvContent = buildCsv(filteredRowsCache, visibleColumns);
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 downloadBlob(blob, 'prosa-log-parser.csv');
             }
@@ -927,10 +1407,14 @@ renderPage('Parser de logs Prosa', static function (): void {
                 const rawInput = input.value;
                 const result = parseLogs(rawInput);
 
+                activeFilters.clear();
+                filterValueLabels.clear();
+                filteredRowsCache = [];
+                openFilterKey = null;
                 processedRows = result.results;
 
                 renderSummary(result.segments, result.results.length, result.errors.length);
-                renderTable(processedRows);
+                renderTable(processedRows, true);
                 renderErrors(result.errors);
                 updateExportButtons();
             }
@@ -938,8 +1422,12 @@ renderPage('Parser de logs Prosa', static function (): void {
             function handleClear() {
                 input.value = '';
                 processedRows = [];
+                activeFilters.clear();
+                filterValueLabels.clear();
+                filteredRowsCache = [];
+                openFilterKey = null;
                 summary.textContent = defaultSummary;
-                renderTable(processedRows);
+                renderTable(processedRows, true);
                 renderErrors([]);
                 updateExportButtons();
                 updateButtonState();
@@ -950,7 +1438,7 @@ renderPage('Parser de logs Prosa', static function (): void {
             }
 
             renderColumnOptions();
-            renderTable(processedRows);
+            renderTable(processedRows, true);
             renderErrors([]);
             updateExportButtons();
             updateButtonState();
